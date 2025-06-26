@@ -2,78 +2,55 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict
 
 import pandas as pd
 from bc3_lib import parse_bc3_to_df
 
 
 class DiffService:
-    """
-    Casos de uso de comparación entre dos presupuestos BC3 expresados
-    como DataFrames.
-    """
+    """Casos de uso de comparación entre dos DataFrames BC3."""
 
     _KEY_COLS = ["precio", "cantidad_pres", "descripcion_corta", "unidad"]
 
-    # ───────────────────────────── LOAD ────────────────────────────────
+    # ───────────────────── cargar DataFrames ────────────────────────────
     @staticmethod
     def load_dfs(old_path: Path, new_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Devuelve los DataFrames generados por bc3_lib.parse_bc3_to_df
-        a partir de los dos ficheros BC3.
-        """
         return parse_bc3_to_df(old_path), parse_bc3_to_df(new_path)
 
-    # ────────────────────────── PARENT MAP ─────────────────────────────
+    # ───────────────────── helpers de jerarquía ─────────────────────────
     @staticmethod
-    def _build_parent_map(df: pd.DataFrame) -> dict[str, str]:
-        """
-        Construye un diccionario {hijo: padre} utilizando la columna
-        'hijos' (códigos separados por coma) de cada fila.
-        """
-        mapping: dict[str, str] = {}
+    def _build_parent_map(df: pd.DataFrame) -> Dict[str, str]:
+        """Construye {hijo: padre} usando la columna 'hijos'."""
+        mapping: Dict[str, str] = {}
         for _, row in df.iterrows():
             parent = row["codigo"]
-            children = str(row.get("hijos", "")).split(",") if row.get("hijos") else []
-            for child in (c.strip() for c in children):
+            for child in str(row.get("hijos", "")).split(","):
+                child = child.strip()
                 if child and child not in mapping:
                     mapping[child] = parent
         return mapping
 
     @staticmethod
-    def _ancestor_chain(code: str, parent_map: dict[str, str], index: pd.Index) -> str:
-        """
-        Devuelve una cadena 'CAP# > SUB# > … > PADRE' recorriendo hacia
-        arriba con parent_map hasta encontrar un nodo cuyo tipo sea
-        'capitulo' o no tenga más padre.
-        """
+    def _ancestor_chain(code: str, parent_map: Dict[str, str], _index: pd.Index) -> str:
+        """Devuelve 'CAP# > SUB# > … > PADRE' (hasta que no haya más padre)."""
         chain: List[str] = []
         cur = parent_map.get(code)
         while cur:
             chain.append(cur)
-            # Si sabemos el tipo y es capitulo → parar
-            # (index puede ser MultiIndex con nivel 'tipo'; si no, omitimos)
             cur = parent_map.get(cur)
         return " > ".join(reversed(chain))
 
-    # ─────────────────────— GENERAL DIFFS ──────────────────────────────
+    # ───────────────────── cambios generales (opcional) ────────────────
     @staticmethod
     def general_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
-        """
-        Añadidos, eliminados y modificados en las columnas clave.
-        """
-        o = df_old.set_index("codigo")
-        n = df_new.set_index("codigo")
-
+        o, n = df_old.set_index("codigo"), df_new.set_index("codigo")
         rows: list[dict] = []
+
         added = n.index.difference(o.index)
         removed = o.index.difference(n.index)
-
-        for code in added:
-            rows.append({"codigo": code, "cambio": "añadido", "campo": "", "antes": "", "despues": ""})
-        for code in removed:
-            rows.append({"codigo": code, "cambio": "eliminado", "campo": "", "antes": "", "despues": ""})
+        rows += [{"codigo": c, "cambio": "nuevo"} for c in added]
+        rows += [{"codigo": c, "cambio": "eliminado"} for c in removed]
 
         common = o.index.intersection(n.index)
         for col in DiffService._KEY_COLS:
@@ -88,25 +65,18 @@ class DiffService:
                         "despues": n.at[code, col],
                     }
                 )
-
         return pd.DataFrame(rows)
 
-    # ──────────────── GENERIC COLUMN DIFF HELPER ───────────────────────
+    # ───────────────────── columna genérica diff ───────────────────────
     @staticmethod
-    def column_diff(
+    def _column_diff(
         df_old: pd.DataFrame,
         df_new: pd.DataFrame,
         column: str,
-        parent_map_old: dict[str, str],
-        parent_map_new: dict[str, str],
+        p_old: Dict[str, str],
+        p_new: Dict[str, str],
     ) -> pd.DataFrame:
-        """
-        Genera un diff para *column* devolviendo los valores old/new y la
-        cadena ascendente de padres (ancestors_*).
-        """
-        o = df_old.set_index("codigo")
-        n = df_new.set_index("codigo")
-
+        o, n = df_old.set_index("codigo"), df_new.set_index("codigo")
         common = o.index.intersection(n.index)
         mask = o.loc[common, column] != n.loc[common, column]
 
@@ -115,8 +85,8 @@ class DiffService:
             rows.append(
                 {
                     "codigo": code,
-                    "ancestors_old": DiffService._ancestor_chain(code, parent_map_old, o.index),
-                    "ancestors_new": DiffService._ancestor_chain(code, parent_map_new, n.index),
+                    "ancestors_old": DiffService._ancestor_chain(code, p_old, o.index),
+                    "ancestors_new": DiffService._ancestor_chain(code, p_new, n.index),
                     f"{column}_old": o.at[code, column],
                     f"{column}_new": n.at[code, column],
                     "descripcion_corta": n.at[code, "descripcion_corta"],
@@ -124,38 +94,88 @@ class DiffService:
             )
         return pd.DataFrame(rows)
 
-    # ──────────────── SHORTCUTS POR COLUMNA ────────────────────────────
+    # ───────────────────── diffs específicos ────────────────────────────
     @staticmethod
     def price_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
-        p_old = DiffService._build_parent_map(df_old)
-        p_new = DiffService._build_parent_map(df_new)
-        return DiffService.column_diff(df_old, df_new, "precio", p_old, p_new)
+        p_old, p_new = DiffService._build_parent_map(df_old), DiffService._build_parent_map(df_new)
+        return DiffService._column_diff(df_old, df_new, "precio", p_old, p_new)
 
     @staticmethod
     def qty_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
-        p_old = DiffService._build_parent_map(df_old)
-        p_new = DiffService._build_parent_map(df_new)
-        return DiffService.column_diff(df_old, df_new, "cantidad_pres", p_old, p_new)
+        p_old, p_new = DiffService._build_parent_map(df_old), DiffService._build_parent_map(df_new)
+        return DiffService._column_diff(df_old, df_new, "cantidad_pres", p_old, p_new)
 
     @staticmethod
     def importe_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
-        p_old = DiffService._build_parent_map(df_old)
-        p_new = DiffService._build_parent_map(df_new)
-        return DiffService.column_diff(df_old, df_new, "importe_pres", p_old, p_new)
+        p_old, p_new = DiffService._build_parent_map(df_old), DiffService._build_parent_map(df_new)
+        return DiffService._column_diff(df_old, df_new, "importe_pres", p_old, p_new)
 
-    # ──────────────── DESCRIPCION_LARGA DIFF ───────────────────────────
+    # ──────────────────── nuevos y eliminados ───────────────────────────
     @staticmethod
-    def long_desc_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
+    def new_deleted_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
         """
-        Códigos comunes cuya descripcion_larga difiere.
-        Incluye descripción corta, precio, cantidad, importe, mediciones y
-        la cadena de ancestros completa.
+        Informe unificado de códigos NUEVOS y ELIMINADOS con:
+            codigo · estado · ancestors_* · descripcion_corta_* · descripcion_larga_*
         """
         o = df_old.set_index("codigo")
         n = df_new.set_index("codigo")
 
         p_old = DiffService._build_parent_map(df_old)
         p_new = DiffService._build_parent_map(df_new)
+
+        added = n.index.difference(o.index)
+        removed = o.index.difference(n.index)
+
+        rows: list[dict] = []
+
+        # NUEVOS ---------------------------------------------------------
+        for code in added:
+            rows.append(
+                {
+                    "codigo": code,
+                    "estado": "nuevo",
+                    "ancestors_old": "",
+                    "ancestors_new": DiffService._ancestor_chain(code, p_new, n.index),
+                    "descripcion_corta_old": "",
+                    "descripcion_corta_new": n.at[code, "descripcion_corta"],
+                    "descripcion_larga_old": "",
+                    "descripcion_larga_new": n.at[code, "descripcion_larga"],
+                }
+            )
+
+        # ELIMINADOS -----------------------------------------------------
+        for code in removed:
+            rows.append(
+                {
+                    "codigo": code,
+                    "estado": "eliminado",
+                    "ancestors_old": DiffService._ancestor_chain(code, p_old, o.index),
+                    "ancestors_new": "",
+                    "descripcion_corta_old": o.at[code, "descripcion_corta"],
+                    "descripcion_corta_new": "",
+                    "descripcion_larga_old": o.at[code, "descripcion_larga"],
+                    "descripcion_larga_new": "",
+                }
+            )
+
+        return pd.DataFrame(
+            rows,
+            columns=[
+                "codigo",
+                "estado",
+                "ancestors_old",
+                "ancestors_new",
+                "descripcion_corta_old",
+                "descripcion_corta_new",
+                "descripcion_larga_old",
+                "descripcion_larga_new",
+            ],
+        )
+    # ───────────────────── descripcion_larga diff ───────────────────────
+    @staticmethod
+    def long_desc_diffs(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
+        o, n = df_old.set_index("codigo"), df_new.set_index("codigo")
+        p_old, p_new = DiffService._build_parent_map(df_old), DiffService._build_parent_map(df_new)
 
         common = o.index.intersection(n.index)
         mask = o.loc[common, "descripcion_larga"] != n.loc[common, "descripcion_larga"]

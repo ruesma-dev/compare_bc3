@@ -14,6 +14,7 @@ LONG_DESC_DIFF_CSV_DEFAULT: Path = Path("output/long_desc_diff.csv")
 PRICE_DIFF_CSV_DEFAULT: Path = Path("output/price_diff.csv")
 QTY_DIFF_CSV_DEFAULT: Path   = Path("output/qty_diff.csv")
 IMP_DIFF_CSV_DEFAULT: Path   = Path("output/importe_diff.csv")
+NEW_DEL_DIFF_CSV_DEFAULT: Path  = Path("output/new_deleted_diff.csv")
 
 
 # CSV
