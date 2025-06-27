@@ -59,14 +59,19 @@ def export_long_desc_excel(df: pd.DataFrame, path: Path) -> None:
         diff_col = df.columns.get_loc("descripcion_larga_diff")
 
         for row_num, (_, r) in enumerate(df.iterrows(), start=1):  # +1 header
-            rich = _rich_diff(
-                r["descripcion_larga_old"],
-                r["descripcion_larga_new"],
-                bold_red,
-            )
-            if len(rich) >= 3:
-                ws.write_rich_string(row_num, diff_col, *rich)
-            else:
-                ws.write(row_num, diff_col, rich[0])
+            old_long = r["descripcion_larga_old"] or ""
+            new_long = r["descripcion_larga_new"] or ""
+
+            # caso: uno de los dos está vacío -> celda entera en rojo bold
+            if not old_long.strip() or not new_long.strip():
+                ws.write(row_num, diff_col, new_long or old_long, bold_red)
+                continue
+
+            # resto de casos -> rich string con partes resaltadas
+            rich_parts = _rich_diff(old_long, new_long, bold_red)
+            if len(rich_parts) >= 3:
+                ws.write_rich_string(row_num, diff_col, *rich_parts)
+            else:  # texto idéntico
+                ws.write(row_num, diff_col, new_long)
 
         # wb.close()
