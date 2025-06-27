@@ -75,3 +75,4 @@ def export_long_desc_excel(df: pd.DataFrame, path: Path) -> None:
                 ws.write(row_num, diff_col, new_long)
 
         # wb.close()
+

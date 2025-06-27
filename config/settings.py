@@ -16,6 +16,13 @@ QTY_DIFF_CSV_DEFAULT: Path   = Path("output/qty_diff.csv")
 IMP_DIFF_CSV_DEFAULT: Path   = Path("output/importe_diff.csv")
 NEW_DEL_DIFF_CSV_DEFAULT: Path  = Path("output/new_deleted_diff.csv")
 
+OLD_DF_XLSX_DEFAULT: Path        = Path("output/old_df.xlsx")
+NEW_DF_XLSX_DEFAULT: Path        = Path("output/new_df.xlsx")
+LONG_DESC_DIFF_XLSX_DEFAULT: Path= Path("output/long_desc_diff.xlsx")
+PRICE_DIFF_XLSX_DEFAULT: Path    = Path("output/price_diff.xlsx")
+QTY_DIFF_XLSX_DEFAULT: Path      = Path("output/qty_diff.xlsx")
+IMP_DIFF_XLSX_DEFAULT: Path      = Path("output/importe_diff.xlsx")
+NEW_DEL_DIFF_XLSX_DEFAULT: Path  = Path("output/new_deleted_diff.xlsx")
 
 # CSV
 CSV_SEP: str = ";"
