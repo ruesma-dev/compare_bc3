@@ -2,6 +2,7 @@
 from pathlib import Path
 from application.services.diff_service import DiffService
 from infrastructure.exporters.df_exporter import export_df
+from infrastructure.exporters.excel_exporter import export_long_desc_excel
 from config import settings
 
 
@@ -12,11 +13,11 @@ def run(old_bc3: Path, new_bc3: Path) -> None:
     export_df(df_old, settings.OLD_DF_CSV_DEFAULT)
     export_df(df_new, settings.NEW_DF_CSV_DEFAULT)
 
-    # descripcion_larga diff ----------------------------------------------
-    export_df(
-        DiffService.long_desc_diffs(df_old, df_new),
-        settings.LONG_DESC_DIFF_CSV_DEFAULT,
-    )
+    # # descripcion_larga diff ----------------------------------------------
+    # export_df(
+    #     DiffService.long_desc_diffs(df_old, df_new),
+    #     settings.LONG_DESC_DIFF_CSV_DEFAULT,
+    # )
 
     # precio diff ----------------------------------------------------------
     export_df(
@@ -41,5 +42,11 @@ def run(old_bc3: Path, new_bc3: Path) -> None:
         DiffService.new_deleted_diffs(df_old, df_new),
         settings.NEW_DEL_DIFF_CSV_DEFAULT,
     )
+
+    # descripcion_larga diff ----------------------------------------------
+    ld_diff = DiffService.long_desc_diffs(df_old, df_new)
+    export_df(ld_diff, settings.LONG_DESC_DIFF_CSV_DEFAULT)
+    export_long_desc_excel(ld_diff, Path("output/long_desc_diff.xlsx"))
+    print("long_desc_diff → CSV + Excel con resaltado")
 
     print("Informes generados en carpeta 'output/'.")
