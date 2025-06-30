@@ -18,12 +18,15 @@ NEW_DEL_DIFF_CSV_DEFAULT: Path  = Path("output/new_deleted_diff.csv")
 
 OLD_DF_XLSX_DEFAULT: Path        = Path("output/old_df.xlsx")
 NEW_DF_XLSX_DEFAULT: Path        = Path("output/new_df.xlsx")
-LONG_DESC_DIFF_XLSX_DEFAULT: Path= Path("output/long_desc_diff.xlsx")
-PRICE_DIFF_XLSX_DEFAULT: Path    = Path("output/price_diff.xlsx")
-QTY_DIFF_XLSX_DEFAULT: Path      = Path("output/qty_diff.xlsx")
-IMP_DIFF_XLSX_DEFAULT: Path      = Path("output/importe_diff.xlsx")
-NEW_DEL_DIFF_XLSX_DEFAULT: Path  = Path("output/new_deleted_diff.xlsx")
+LONG_DESC_DIFF_XLSX_DEFAULT: Path   = Path("output/comparativo_descripcion.xlsx")
+PRICE_DIFF_XLSX_DEFAULT: Path       = Path("output/comparativo_precio.xlsx")
+QTY_DIFF_XLSX_DEFAULT: Path         = Path("output/comparativo_medicion.xlsx")
+IMP_DIFF_XLSX_DEFAULT: Path         = Path("output/comparativo_importe.xlsx")
+NEW_DEL_DIFF_XLSX_DEFAULT: Path     = Path("output/nuevas_viejas_lineas.xlsx")
 
 # CSV
 CSV_SEP: str = ";"
 CSV_ENCODING: str = "utf-8"
+
+# Versión de la aplicación Compare BC3
+APP_VERSION: str = "1.0.0"

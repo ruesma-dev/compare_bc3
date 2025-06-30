@@ -12,35 +12,40 @@ def run(old_bc3: Path, new_bc3: Path) -> None:
     # 1) DataFrames completos -------------------------------------------------
     df_old, df_new = DiffService.load_dfs(old_bc3, new_bc3)
 
-    export_df(df_old, settings.OLD_DF_CSV_DEFAULT)
-    export_df_excel(df_old, settings.OLD_DF_XLSX_DEFAULT)
-
-    export_df(df_new, settings.NEW_DF_CSV_DEFAULT)
-    export_df_excel(df_new, settings.NEW_DF_XLSX_DEFAULT)
+    # export_df(df_old, settings.OLD_DF_CSV_DEFAULT)
+    # export_df_excel(df_old, settings.OLD_DF_XLSX_DEFAULT)
+    #
+    # export_df(df_new, settings.NEW_DF_CSV_DEFAULT)
+    # export_df_excel(df_new, settings.NEW_DF_XLSX_DEFAULT)
 
     # 2) descripción larga ----------------------------------------------------
     ld_diff = DiffService.long_desc_diffs(df_old, df_new)
-    export_df(ld_diff, settings.LONG_DESC_DIFF_CSV_DEFAULT)
+    # export_df(ld_diff, settings.LONG_DESC_DIFF_CSV_DEFAULT)
     export_long_desc_excel(ld_diff, settings.LONG_DESC_DIFF_XLSX_DEFAULT)
+    print(f"Comparativo descripción → {settings.LONG_DESC_DIFF_XLSX_DEFAULT.resolve()}")
 
     # 3) precio ----------------------------------------------------------------
     price_diff = DiffService.price_diffs(df_old, df_new)
-    export_df(price_diff, settings.PRICE_DIFF_CSV_DEFAULT)
+    # export_df(price_diff, settings.PRICE_DIFF_CSV_DEFAULT)
     export_df_excel(price_diff, settings.PRICE_DIFF_XLSX_DEFAULT)
+    print(f"Comparativo precio → {settings.PRICE_DIFF_XLSX_DEFAULT.resolve()}")
 
     # 4) cantidad_pres ---------------------------------------------------------
     qty_diff = DiffService.qty_diffs(df_old, df_new)
-    export_df(qty_diff, settings.QTY_DIFF_CSV_DEFAULT)
+    # export_df(qty_diff, settings.QTY_DIFF_CSV_DEFAULT)
     export_df_excel(qty_diff, settings.QTY_DIFF_XLSX_DEFAULT)
+    print(f"Comparativo medición → {settings.QTY_DIFF_XLSX_DEFAULT.resolve()}")
 
     # 5) importe_pres ----------------------------------------------------------
     imp_diff = DiffService.importe_diffs(df_old, df_new)
-    export_df(imp_diff, settings.IMP_DIFF_CSV_DEFAULT)
+    # export_df(imp_diff, settings.IMP_DIFF_CSV_DEFAULT)
     export_df_excel(imp_diff, settings.IMP_DIFF_XLSX_DEFAULT)
+    print(f"Comparativo importe → {settings.IMP_DIFF_XLSX_DEFAULT.resolve()}")
 
     # 6) nuevos / eliminados ---------------------------------------------------
     new_del_diff = DiffService.new_deleted_diffs(df_old, df_new)
-    export_df(new_del_diff, settings.NEW_DEL_DIFF_CSV_DEFAULT)
+    # export_df(new_del_diff, settings.NEW_DEL_DIFF_CSV_DEFAULT)
     export_df_excel(new_del_diff, settings.NEW_DEL_DIFF_XLSX_DEFAULT)
+    print(f"Nuevas/Viejas líneas → {settings.NEW_DEL_DIFF_XLSX_DEFAULT.resolve()}")
 
-    print("Todos los CSV y XLSX se han generado en la carpeta 'output/'.")
+    print("\nTodos los informes XLSX se han generado en la carpeta 'output/'.")
