@@ -29,6 +29,23 @@ class DiffService:
         "importe_pres": (getattr(settings, "IMP_TOL_ABS", None), getattr(settings, "IMP_TOL_PCT", None)),
     }
 
+    # ───────── helpers de normalización para diffs de texto ────────────
+    @staticmethod
+    def _normalize_for_text_diff(s: str | None) -> str:
+        """
+        Normalización mínima para reducir 'falsos' cambios por codificación:
+          - Unifica saltos de línea CRLF → LF
+          - Elimina símbolo de grado (º / °) para comparar contra 'C'
+          - Corrige artefacto 'QC' → 'C' (caso típico de mal decodificado)
+        No colapsa espacios ni altera acentos para no desposicionar demasiado.
+        """
+        if s is None:
+            return ""
+        out = s.replace("\r\n", "\n")
+        out = out.replace("º", "").replace("°", "")
+        out = out.replace("QC", "C")
+        return out
+
     # ───────────────────── cargar DataFrames ────────────────────────────
     @staticmethod
     def load_dfs(old_path: Path, new_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -236,14 +253,24 @@ class DiffService:
         """
         Devuelve *new* con los fragmentos que no coinciden con *old*
         envueltos en **doble asterisco** (Markdown bold).
+
+        Se aplica una normalización SUAVE para evitar “explosiones” de asteriscos
+        por símbolos de grado y artefactos 'QC'.
         """
-        sm = difflib.SequenceMatcher(None, old or "", new or "")
+        import difflib
+
+        old_n = DiffService._normalize_for_text_diff(old)
+        new_n = DiffService._normalize_for_text_diff(new)
+
+        sm = difflib.SequenceMatcher(None, old_n or "", new_n or "")
         out: list[str] = []
+        # OJO: ensamblamos con el texto normalizado (objetivo: dif legible),
+        # no afecta al pintado en rojo del Excel (que usa otro flujo).
         for op, i1, i2, j1, j2 in sm.get_opcodes():
             if op == "equal":
-                out.append(new[j1:j2])
+                out.append(new_n[j1:j2])
             else:  # replace / insert / delete
-                out.append(f"**{new[j1:j2]}**")
+                out.append(f"**{new_n[j1:j2]}**")
         return "".join(out)
 
     # ─────────────── descripcion_larga diff  ────────────────────────
