@@ -7,28 +7,69 @@ import difflib
 
 import pandas as pd
 from bc3_lib import parse_bc3_to_df
+from config import settings
+from application.services.compare_utils import (
+    neq_with_tolerance,
+    neq_na_safe,
+    clean_children_field,
+)
+from application.services.bc3_text_fix import extract_multiline_texts
 
 
 class DiffService:
     """Casos de uso de comparación entre dos DataFrames BC3."""
 
     _KEY_COLS = ["precio", "cantidad_pres", "descripcion_corta", "unidad"]
+    _NUMERIC_COLS = {"precio", "cantidad_pres", "importe_pres"}
+
+    # Tolerancias por métrica (None mantiene comportamiento previo)
+    _TOLERANCES = {
+        "precio": (getattr(settings, "PRICE_TOL_ABS", None), getattr(settings, "PRICE_TOL_PCT", None)),
+        "cantidad_pres": (getattr(settings, "QTY_TOL_ABS", None), getattr(settings, "QTY_TOL_PCT", None)),
+        "importe_pres": (getattr(settings, "IMP_TOL_ABS", None), getattr(settings, "IMP_TOL_PCT", None)),
+    }
 
     # ───────────────────── cargar DataFrames ────────────────────────────
     @staticmethod
     def load_dfs(old_path: Path, new_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return parse_bc3_to_df(old_path), parse_bc3_to_df(new_path)
+        """
+        Carga y repara (si procede) la descripcion_larga con bloques ~T multilinea.
+        """
+        df_old = parse_bc3_to_df(old_path)
+        df_new = parse_bc3_to_df(new_path)
+
+        # Reparación no invasiva: si encontramos ~T multilinea la usamos.
+        _, t_old = extract_multiline_texts(old_path)
+        _, t_new = extract_multiline_texts(new_path)
+
+        if "codigo" in df_old.columns:
+            df_old = df_old.copy()
+            df_old.set_index("codigo", inplace=True, drop=False)
+            # Sólo sobrescribe si existe en el mapa extraído
+            for code, txt in t_old.items():
+                if code in df_old.index:
+                    df_old.at[code, "descripcion_larga"] = txt
+            df_old.reset_index(drop=True, inplace=True)
+
+        if "codigo" in df_new.columns:
+            df_new = df_new.copy()
+            df_new.set_index("codigo", inplace=True, drop=False)
+            for code, txt in t_new.items():
+                if code in df_new.index:
+                    df_new.at[code, "descripcion_larga"] = txt
+            df_new.reset_index(drop=True, inplace=True)
+
+        return df_old, df_new
 
     # ───────────────────── helpers de jerarquía ─────────────────────────
     @staticmethod
     def _build_parent_map(df: pd.DataFrame) -> Dict[str, str]:
-        """Construye {hijo: padre} usando la columna 'hijos'."""
+        """Construye {hijo: padre} usando la columna 'hijos' (saneada)."""
         mapping: Dict[str, str] = {}
         for _, row in df.iterrows():
             parent = row["codigo"]
-            for child in str(row.get("hijos", "")).split(","):
-                child = child.strip()
-                if child and child not in mapping:
+            for child in clean_children_field(row.get("hijos", None)):
+                if child not in mapping:
                     mapping[child] = parent
         return mapping
 
@@ -55,7 +96,15 @@ class DiffService:
 
         common = o.index.intersection(n.index)
         for col in DiffService._KEY_COLS:
-            mask = o.loc[common, col] != n.loc[common, col]
+            s_old = o.loc[common, col]
+            s_new = n.loc[common, col]
+
+            if col in DiffService._NUMERIC_COLS:
+                tol_abs, tol_pct = DiffService._TOLERANCES.get(col, (None, None))
+                mask = neq_with_tolerance(s_old, s_new, tol_abs=tol_abs, tol_pct=tol_pct)
+            else:
+                mask = neq_na_safe(s_old, s_new)
+
             for code in mask[mask].index:
                 rows.append(
                     {
@@ -79,7 +128,15 @@ class DiffService:
     ) -> pd.DataFrame:
         o, n = df_old.set_index("codigo"), df_new.set_index("codigo")
         common = o.index.intersection(n.index)
-        mask = o.loc[common, column] != n.loc[common, column]
+
+        s_old = o.loc[common, column]
+        s_new = n.loc[common, column]
+
+        if column in DiffService._NUMERIC_COLS:
+            tol_abs, tol_pct = DiffService._TOLERANCES.get(column, (None, None))
+            mask = neq_with_tolerance(s_old, s_new, tol_abs=tol_abs, tol_pct=tol_pct)
+        else:
+            mask = neq_na_safe(s_old, s_new)
 
         rows: list[dict] = []
         for code in common[mask]:
@@ -174,7 +231,6 @@ class DiffService:
         )
 
     # ───────── helper para resaltar diferencias en línea ────────────────
-
     @staticmethod
     def _highlight_diff(old: str, new: str) -> str:
         """
@@ -186,7 +242,7 @@ class DiffService:
         for op, i1, i2, j1, j2 in sm.get_opcodes():
             if op == "equal":
                 out.append(new[j1:j2])
-            else:                          # replace / insert / delete
+            else:  # replace / insert / delete
                 out.append(f"**{new[j1:j2]}**")
         return "".join(out)
 
@@ -197,7 +253,8 @@ class DiffService:
         p_old, p_new = DiffService._build_parent_map(df_old), DiffService._build_parent_map(df_new)
 
         common = o.index.intersection(n.index)
-        mask = o.loc[common, "descripcion_larga"] != n.loc[common, "descripcion_larga"]
+        # NaN-safe desigualdad para texto largo
+        mask = neq_na_safe(o.loc[common, "descripcion_larga"], n.loc[common, "descripcion_larga"])
 
         rows: List[dict] = []
         for code in common[mask]:
@@ -235,7 +292,7 @@ class DiffService:
                 "descripcion_corta_new",
                 "descripcion_larga_old",
                 "descripcion_larga_new",
-                "descripcion_larga_diff",   # ← nueva columna
+                "descripcion_larga_diff",  # ← columna para exporter rich
                 "precio_old",
                 "precio_new",
                 "cantidad_pres_old",
@@ -246,4 +303,3 @@ class DiffService:
                 "mediciones_new",
             ],
         )
-

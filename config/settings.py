@@ -12,17 +12,17 @@ NEW_DF_CSV_DEFAULT: Path = Path("output/new_df.csv")
 # ruta para las diferencias
 LONG_DESC_DIFF_CSV_DEFAULT: Path = Path("output/long_desc_diff.csv")
 PRICE_DIFF_CSV_DEFAULT: Path = Path("output/price_diff.csv")
-QTY_DIFF_CSV_DEFAULT: Path   = Path("output/qty_diff.csv")
-IMP_DIFF_CSV_DEFAULT: Path   = Path("output/importe_diff.csv")
-NEW_DEL_DIFF_CSV_DEFAULT: Path  = Path("output/new_deleted_diff.csv")
+QTY_DIFF_CSV_DEFAULT: Path = Path("output/qty_diff.csv")
+IMP_DIFF_CSV_DEFAULT: Path = Path("output/importe_diff.csv")
+NEW_DEL_DIFF_CSV_DEFAULT: Path = Path("output/new_deleted_diff.csv")
 
-OLD_DF_XLSX_DEFAULT: Path        = Path("output/old_df.xlsx")
-NEW_DF_XLSX_DEFAULT: Path        = Path("output/new_df.xlsx")
-LONG_DESC_DIFF_XLSX_DEFAULT: Path   = Path("output/comparativo_descripcion.xlsx")
-PRICE_DIFF_XLSX_DEFAULT: Path       = Path("output/comparativo_precio.xlsx")
-QTY_DIFF_XLSX_DEFAULT: Path         = Path("output/comparativo_medicion.xlsx")
-IMP_DIFF_XLSX_DEFAULT: Path         = Path("output/comparativo_importe.xlsx")
-NEW_DEL_DIFF_XLSX_DEFAULT: Path     = Path("output/nuevas_viejas_lineas.xlsx")
+OLD_DF_XLSX_DEFAULT: Path = Path("output/old_df.xlsx")
+NEW_DF_XLSX_DEFAULT: Path = Path("output/new_df.xlsx")
+LONG_DESC_DIFF_XLSX_DEFAULT: Path = Path("output/comparativo_descripcion.xlsx")
+PRICE_DIFF_XLSX_DEFAULT: Path = Path("output/comparativo_precio.xlsx")
+QTY_DIFF_XLSX_DEFAULT: Path = Path("output/comparativo_medicion.xlsx")
+IMP_DIFF_XLSX_DEFAULT: Path = Path("output/comparativo_importe.xlsx")
+NEW_DEL_DIFF_XLSX_DEFAULT: Path = Path("output/nuevas_viejas_lineas.xlsx")
 
 # CSV
 CSV_SEP: str = ";"
@@ -30,3 +30,15 @@ CSV_ENCODING: str = "utf-8"
 
 # Versión de la aplicación Compare BC3
 APP_VERSION: str = "1.0.0"
+
+# ───────────────────── Tolerancias opcionales ─────────────────────────
+# None mantiene el comportamiento previo (sin tolerancia).
+# Si deseas activarlas: p.ej. PRICE_TOL_ABS = 0.001, PRICE_TOL_PCT = 0.0005 (0.05%)
+PRICE_TOL_ABS: float | None = None
+PRICE_TOL_PCT: float | None = None
+
+QTY_TOL_ABS: float | None = None
+QTY_TOL_PCT: float | None = None
+
+IMP_TOL_ABS: float | None = None
+IMP_TOL_PCT: float | None = None
